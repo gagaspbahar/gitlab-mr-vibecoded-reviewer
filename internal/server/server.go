@@ -1,13 +1,11 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"gitlab-mr-vibecoded-reviewer/internal/reviewer"
 )
@@ -15,7 +13,7 @@ import (
 type Server struct {
 	webhookToken string
 	botUsername  string
-	reviewer     *reviewer.Reviewer
+	queue        *reviewer.Queue
 }
 
 type NoteEvent struct {
@@ -30,11 +28,11 @@ type NoteEvent struct {
 	} `json:"object_attributes"`
 }
 
-func New(webhookToken, botUsername string, reviewer *reviewer.Reviewer) *Server {
+func New(webhookToken, botUsername string, queue *reviewer.Queue) *Server {
 	return &Server{
 		webhookToken: webhookToken,
 		botUsername:  botUsername,
-		reviewer:     reviewer,
+		queue:        queue,
 	}
 }
 
@@ -70,16 +68,18 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-	defer cancel()
-
-	if err := s.reviewer.Run(ctx, event.ProjectID, event.MergeRequest.IID, event.ObjectAttributes.Note); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(fmt.Sprintf("review failed: %s", err)))
+	job := reviewer.Job{
+		ProjectID: event.ProjectID,
+		MRIID:     event.MergeRequest.IID,
+		Note:      event.ObjectAttributes.Note,
+	}
+	if err := s.queue.Enqueue(job); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(fmt.Sprintf("enqueue failed: %s", err)))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s *Server) authorized(r *http.Request) bool {
