@@ -31,7 +31,9 @@ func main() {
 	}
 
 	reviewerService := reviewer.New(gitlabClient, llmClient)
-	server := server.New(cfg.WebhookToken, cfg.BotUsername, reviewerService)
+	queue := reviewer.NewQueue(cfg.WorkerConcurrency*2, cfg.JobTimeout)
+	queue.StartWorkers(cfg.WorkerConcurrency, reviewerService)
+	server := server.New(cfg.WebhookToken, cfg.BotUsername, queue)
 
 	log.Printf("review bot listening on %s", cfg.ListenAddr)
 	if err := http.ListenAndServe(cfg.ListenAddr, server.Handler()); err != nil {

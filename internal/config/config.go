@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	GitLabBaseURL string        `mapstructure:"gitlab_base_url"`
-	GitLabToken   string        `mapstructure:"gitlab_token"`
-	WebhookToken  string        `mapstructure:"gitlab_webhook_token"`
-	BotUsername   string        `mapstructure:"bot_username"`
-	ListenAddr    string        `mapstructure:"listen_addr"`
-	LLMBaseURL    string        `mapstructure:"llm_base_url"`
-	LLMAPIKey     string        `mapstructure:"llm_api_key"`
-	LLMModel      string        `mapstructure:"llm_model"`
-	HTTPTimeout   time.Duration `mapstructure:"http_timeout"`
+	GitLabBaseURL     string        `mapstructure:"gitlab_base_url"`
+	GitLabToken       string        `mapstructure:"gitlab_token"`
+	WebhookToken      string        `mapstructure:"gitlab_webhook_token"`
+	BotUsername       string        `mapstructure:"bot_username"`
+	ListenAddr        string        `mapstructure:"listen_addr"`
+	LLMBaseURL        string        `mapstructure:"llm_base_url"`
+	LLMAPIKey         string        `mapstructure:"llm_api_key"`
+	LLMModel          string        `mapstructure:"llm_model"`
+	HTTPTimeout       time.Duration `mapstructure:"http_timeout"`
+	WorkerConcurrency int           `mapstructure:"worker_concurrency"`
+	JobTimeout        time.Duration `mapstructure:"job_timeout"`
 }
 
 func Load(path string) (Config, error) {
@@ -25,6 +27,8 @@ func Load(path string) (Config, error) {
 	v.SetDefault("listen_addr", ":8080")
 	v.SetDefault("llm_model", "internal-reviewer")
 	v.SetDefault("http_timeout", "30s")
+	v.SetDefault("worker_concurrency", 2)
+	v.SetDefault("job_timeout", "5m")
 
 	if err := v.ReadInConfig(); err != nil {
 		return Config{}, fmt.Errorf("read config: %w", err)
@@ -49,6 +53,12 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.LLMAPIKey == "" {
 		return Config{}, fmt.Errorf("llm_api_key is required")
+	}
+	if cfg.WorkerConcurrency <= 0 {
+		return Config{}, fmt.Errorf("worker_concurrency must be positive")
+	}
+	if cfg.JobTimeout <= 0 {
+		return Config{}, fmt.Errorf("job_timeout must be positive")
 	}
 
 	return cfg, nil
