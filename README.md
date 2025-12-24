@@ -41,6 +41,30 @@ sets the per-review timeout for each queued job.
 go run ./cmd/review-bot -config config.yaml
 ```
 
+## API
+
+### `POST /webhook`
+
+GitLab webhook endpoint for Note events. Returns `202 Accepted` after validation and
+queues the review work for background processing.
+
+### `GET /healthz`
+
+Health check endpoint. Returns `200 OK` with `ok`.
+
+### `GET /debug/queue`
+
+Queue visibility endpoint. Returns JSON with the current queue depth and in-flight job count.
+
+Example response:
+
+```json
+{
+  "in_flight": 0,
+  "queue_depth": 0
+}
+```
+
 ## Webhook setup
 
 Configure a GitLab webhook that sends **Note events** to `http://<host>:8080/webhook`.
