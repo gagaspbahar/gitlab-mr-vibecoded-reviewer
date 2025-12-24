@@ -39,6 +39,7 @@ func New(webhookToken, botUsername string, queue *reviewer.Queue) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/webhook", s.handleWebhook)
+	mux.HandleFunc("/debug/queue", s.handleQueueStats)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -80,6 +81,15 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) handleQueueStats(w http.ResponseWriter, _ *http.Request) {
+	stats := s.queue.QueueStats()
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) authorized(r *http.Request) bool {

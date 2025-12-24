@@ -74,3 +74,28 @@ func TestHandleWebhookAccepted(t *testing.T) {
 		t.Fatal("timed out waiting for job")
 	}
 }
+
+func TestHandleQueueStats(t *testing.T) {
+	queue := reviewer.NewQueue(2, time.Minute)
+	srv := New("token", "review-bot", queue)
+	if err := queue.Enqueue(reviewer.Job{ProjectID: 1, MRIID: 2, Note: "note"}); err != nil {
+		t.Fatalf("enqueue job: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/debug/queue", nil)
+	rec := httptest.NewRecorder()
+
+	srv.handleQueueStats(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var payload reviewer.QueueStats
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode stats: %v", err)
+	}
+	if payload.QueueDepth != 1 {
+		t.Fatalf("expected queue_depth 1, got %d", payload.QueueDepth)
+	}
+}
